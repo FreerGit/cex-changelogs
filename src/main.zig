@@ -1,19 +1,34 @@
 const std = @import("std");
+const assert = std.debug.assert;
+
+fn setup_changelog_files(comptime names: []const []const u8) !void {
+    const cwd = std.fs.cwd();
+    inline for (names[0..]) |name| {
+        var file = try cwd.createFile("./changelogs/" ++ name ++ ".txt", std.fs.File.CreateFlags{ .read = true });
+        defer file.close();
+    }
+}
 
 pub fn main() !void {
-    // Prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
-    std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
+    var arena = std.heap.ArenaAllocator.init(std.heap.c_allocator);
+    defer arena.deinit();
+    const names = [_][]const u8{ "binance", "bybit" };
+    try setup_changelog_files(names[0..]);
 
-    // stdout is for the actual output of your application, for example if you
-    // are implementing gzip, then only the compressed bytes should be sent to
-    // stdout, not any debugging messages.
-    const stdout_file = std.io.getStdOut().writer();
-    var bw = std.io.bufferedWriter(stdout_file);
-    const stdout = bw.writer();
+    // var binance_buffer: [1024 * 1024 * 16]u8 = undefined;
 
-    try stdout.print("Run `zig build test` to run the tests.\n", .{});
+    // const file = try std.fs.cwd().createFile("./changelogs/binance.txt", std.fs.File.CreateFlags{ .read = true });
+    // defer file.close();
+    // // os.read("./changelogs/binance.txt", &binance_buffer);
+    // const bytes_read = try file.readAll(&binance_buffer);
 
-    try bw.flush(); // don't forget to flush!
+    // var client = std.http.Client{ .allocator = arena.allocator() };
+    // const binance_res = try std.http.Client.fetch(&client, arena.allocator(), .{ .location = .{ .url = "https://binance-docs.github.io/apidocs/futures/en/#change-log" } });
+    // const binance_html = binance_res.body.?;
+    // try file.writeAll(binance_html);
+    // std.debug.print("{d}, {s}\n{s}\n", .{ bytes_read, binance_buffer[0..100], binance_html[0..100] });
+    // assert(std.mem.eql(u8, binance_buffer[0..bytes_read], binance_html));
+    // std.debug.print("{s}", .{binance_html});
 }
 
 test "simple test" {
