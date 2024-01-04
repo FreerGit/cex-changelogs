@@ -1,20 +1,20 @@
 const std = @import("std");
 const assert = std.debug.assert;
+const hmap = std.hash_map;
 
 fn setup_changelog_files(comptime names: []const []const u8) ![]std.fs.File {
     const cwd = std.fs.cwd();
     var files: [names.len]std.fs.File = undefined;
-    var idx = 0;
-    inline for (names[0..]) |name| {
-        const open_file = try cwd.openFile("./changelogs/" ++ name ++ ".txt", .{}) catch {
-            const file = try cwd.createFile("./changelogs/" ++ name ++ ".txt", std.fs.File.CreateFlags{ .read = true });
-            files[idx] = file;
-            idx += 1;
+    // var idx = 0;
+    inline for (names[0..], 0..) |name, idx| {
+        const open_file = cwd.openFile("./changelogs/" ++ name ++ ".txt", .{ .mode = .read_write }) catch blk: {
+            break :blk try cwd.createFile("./changelogs/" ++ name ++ ".txt", std.fs.File.CreateFlags{ .read = true });
         };
         files[idx] = open_file;
+        std.debug.print("{d} {any}", .{ idx, files[idx] });
     }
 
-    return files;
+    return files[0..];
 }
 
 //  read file
@@ -27,18 +27,19 @@ fn setup_changelog_files(comptime names: []const []const u8) ![]std.fs.File {
 pub fn main() !void {
     var arena = std.heap.ArenaAllocator.init(std.heap.c_allocator);
     defer arena.deinit();
-    const names = [_][]const u8{ "binance", "bybit" };
-    var files = try setup_changelog_files(names[0..]);
-    for (files) |file| {
-        defer file.close();
+    const names = [_][]const u8{ "bybit", "binance" };
+    const files = try setup_changelog_files(names[0..]);
+    var map = std.StringHashMap([]const u8).init(arena.allocator());
+    for (files, names) |file, name| {
+        var read_buffer: [1024 * 1024 * 16]u8 = undefined;
+        const bytes_read = try file.readAll(&read_buffer);
+        try map.put(name, read_buffer[0..bytes_read]);
+        // defer file.close();
     }
-
-    // var binance_buffer: [1024 * 1024 * 16]u8 = undefined;
-
+    std.debug.print("file: {s}\n", .{map.get("binance").?});
     // const file = try std.fs.cwd().createFile("./changelogs/binance.txt", std.fs.File.CreateFlags{ .read = true });
     // defer file.close();
     // // os.read("./changelogs/binance.txt", &binance_buffer);
-    // const bytes_read = try file.readAll(&binance_buffer);
 
     // var client = std.http.Client{ .allocator = arena.allocator() };
     // const binance_res = try std.http.Client.fetch(&client, arena.allocator(), .{ .location = .{ .url = "https://binance-docs.github.io/apidocs/futures/en/#change-log" } });
