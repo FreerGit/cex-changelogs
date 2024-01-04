@@ -1,19 +1,37 @@
 const std = @import("std");
 const assert = std.debug.assert;
 
-fn setup_changelog_files(comptime names: []const []const u8) !void {
+fn setup_changelog_files(comptime names: []const []const u8) ![]std.fs.File {
     const cwd = std.fs.cwd();
+    var files: [names.len]std.fs.File = undefined;
+    var idx = 0;
     inline for (names[0..]) |name| {
-        var file = try cwd.createFile("./changelogs/" ++ name ++ ".txt", std.fs.File.CreateFlags{ .read = true });
-        defer file.close();
+        const open_file = try cwd.openFile("./changelogs/" ++ name ++ ".txt", .{}) catch {
+            const file = try cwd.createFile("./changelogs/" ++ name ++ ".txt", std.fs.File.CreateFlags{ .read = true });
+            files[idx] = file;
+            idx += 1;
+        };
+        files[idx] = open_file;
     }
+
+    return files;
 }
+
+//  read file
+//  if not exists
+//      create
+//  loop http read
+//  write to file any diffs
+//  delete changelog
 
 pub fn main() !void {
     var arena = std.heap.ArenaAllocator.init(std.heap.c_allocator);
     defer arena.deinit();
     const names = [_][]const u8{ "binance", "bybit" };
-    try setup_changelog_files(names[0..]);
+    var files = try setup_changelog_files(names[0..]);
+    for (files) |file| {
+        defer file.close();
+    }
 
     // var binance_buffer: [1024 * 1024 * 16]u8 = undefined;
 
