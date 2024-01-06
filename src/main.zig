@@ -3,9 +3,8 @@ const assert = std.debug.assert;
 const hmap = std.hash_map;
 const print = std.debug.print;
 
-fn setup_changelog_files(comptime names: []const []const u8, allocator: std.mem.Allocator) ![]std.fs.File {
+fn setup_changelog_files(comptime names: []const []const u8, files: []std.fs.File, allocator: std.mem.Allocator) !void {
     const cwd = std.fs.cwd();
-    var files: [names.len]std.fs.File = undefined;
 
     for (names, 0..) |name, idx| {
         const path = try std.fmt.allocPrint(allocator, "{s}{s}{s}", .{ "./changelogs/", name, ".txt" });
@@ -14,10 +13,7 @@ fn setup_changelog_files(comptime names: []const []const u8, allocator: std.mem.
             break :blk try cwd.createFile(path, std.fs.File.CreateFlags{ .read = true });
         };
         files[idx] = open_file;
-        std.debug.print("{any}\n", .{files[idx]});
     }
-
-    return files[0..];
 }
 
 //  read file
@@ -30,17 +26,17 @@ fn setup_changelog_files(comptime names: []const []const u8, allocator: std.mem.
 pub fn main() !void {
     var arena = std.heap.ArenaAllocator.init(std.heap.c_allocator);
     defer arena.deinit();
-    const names = [_][]const u8{ "bybit", "binance", "OKX" };
-    const files = try setup_changelog_files(names[0..], arena.allocator());
+    const names = [_][]const u8{ "binance", "bybit", "OKX", "gateio" };
+    var files: [names.len]std.fs.File = undefined;
+    try setup_changelog_files(names[0..], &files, arena.allocator());
     var map = std.StringHashMap([]const u8).init(arena.allocator());
+    var i: usize = 1;
     for (files, names) |file, name| {
-        var read_buffer: [1024 * 1024 * 16]u8 = undefined;
-        std.debug.print("{d} {any}", .{ 0, file });
-        std.debug.print("hej\n", .{});
-        const bytes_read = try file.readAll(&read_buffer);
-        print("{d}\n", .{bytes_read});
-        try map.put(name, read_buffer[0..bytes_read]);
-        std.debug.print("file: {any}\n", .{map.get(name)});
+        i += 1;
+        print("{any}\n", .{files});
+        const read_buffer = try file.readToEndAlloc(arena.allocator(), 1024 * 1024 * 16);
+        try map.put(name, read_buffer);
+        std.debug.print("file: t{any}\n", .{map.get(name)});
         // defer file.close();
     }
     // const file = try std.fs.cwd().createFile("./changelogs/binance.txt", std.fs.File.CreateFlags{ .read = true });
